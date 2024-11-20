@@ -296,14 +296,13 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
     _positionController.addListener(() {
       if (!_isDraggingSeek && _playbackState == 'PLAYING') {
         setState(() {
-          _position = _position.clamp(0, _duration);
-          if (_position > _duration) _position = _duration;
           final now = DateTime.now();
           final timeSinceLastUpdate = _lastPositionUpdate != null
               ? now.difference(_lastPositionUpdate!).inMilliseconds / 1000
               : 0.0;
           _position = _position + timeSinceLastUpdate;
           _lastPositionUpdate = now;
+          _position = _position.clamp(0, _duration);
         });
       }
     });
@@ -397,7 +396,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
   }
 
   void _handleSeekEnd(double value) {
-    final clampedValue = value.clamp(0, _duration).toDouble();
+    final clampedValue = value.clamp(0.0, _duration.toDouble());
     setState(() {
       _isDraggingSeek = false;
       _position = clampedValue;
