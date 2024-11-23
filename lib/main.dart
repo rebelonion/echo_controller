@@ -12,7 +12,7 @@ Future<void> main() async {
     builder: () => MyAudioHandler(),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.rebelonion.musiccontroller.channel.audio',
-      androidNotificationChannelName: 'Music Controller',
+      androidNotificationChannelName: 'Echo Music Controller',
       androidNotificationOngoing: true,
       androidStopForegroundOnPause: true,
     ),
@@ -191,7 +191,7 @@ class _ConnectPageState extends State<ConnectPage> {
       _error = null;
     });
 
-    final wsUrl = 'ws://localhost:8080/ws';
+    const wsUrl = 'ws://ws.rebelonion.dev:443/ws';
     final channel = WebSocketChannel.connect(Uri.parse(wsUrl));
 
     // Send connect message
@@ -269,7 +269,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
   String _currentTrack = 'No track playing';
   String _artist = '';
   String _album = '';
-  String _playbackState = 'PAUSED';
+  bool _isPlaying = false;
   List<dynamic> _playlist = [];
   int _currentIndex = 0;
   double _position = 0;
@@ -294,7 +294,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
     );
 
     _positionController.addListener(() {
-      if (!_isDraggingSeek && _playbackState == 'PLAYING') {
+      if (!_isDraggingSeek && _isPlaying) {
         setState(() {
           final now = DateTime.now();
           final timeSinceLastUpdate = _lastPositionUpdate != null
@@ -313,7 +313,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
         switch (data['type']) {
           case 'PlaybackStateUpdate':
             setState(() {
-              _playbackState = data['state'];
+              _isPlaying = data['isPlaying'];
               _currentTrack = data['track']['title'];
               _artist = data['track']['artist'];
               _album = data['track']['album'];
@@ -321,7 +321,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
               if (!_isDraggingSeek) {
                 _position = data['currentPosition'] / 1000;
                 _lastPositionUpdate = DateTime.now();
-                if (_playbackState == 'PLAYING') {
+                if (_isPlaying) {
                   _positionController.repeat();
                 } else {
                   _positionController.stop();
@@ -331,7 +331,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
 
               // Update audio service
               audioHandler.updatePlaybackState(
-                isPlaying: _playbackState == 'PLAYING',
+                isPlaying: _isPlaying,
                 position: Duration(milliseconds: data['currentPosition'].round()),
                 duration: Duration(milliseconds: data['track']['duration'].round()),
                 repeatMode: _repeatMode,
@@ -402,7 +402,7 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
       _position = clampedValue;
       if (_position > _duration) _position = _duration;
     });
-    _sendCommand('SeekCommand', extra: {'position': clampedValue * 1000});
+    _sendCommand('SeekCommand', extra: {'position': clampedValue.toInt() * 1000});
   }
 
   @override
@@ -445,9 +445,9 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
             ),
             onPressed: () {
               final nextMode = switch (_repeatMode) {
-                'OFF' => 'ALL',
-                'ALL' => 'ONE',
-                'ONE' => 'OFF',
+                'OFF' => 'ONE',
+                'ONE' => 'ALL',
+                'ALL' => 'OFF',
                 String() => 'OFF',
               };
               _sendCommand('RepeatCommand', extra: {'mode': nextMode});
@@ -547,11 +547,11 @@ class _ControllerPageState extends State<ControllerPage> with SingleTickerProvid
                           'PlaybackCommand',
                           extra: {
                             'action':
-                            _playbackState == 'PLAYING' ? 'PAUSE' : 'PLAY'
+                            _isPlaying ? 'PAUSE' : 'PLAY'
                           },
                         ),
                         icon: Icon(
-                          _playbackState == 'PLAYING'
+                          _isPlaying
                               ? Icons.pause_circle_filled
                               : Icons.play_circle_filled,
                         ),
